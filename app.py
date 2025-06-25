@@ -1,16 +1,12 @@
 import warnings
 warnings.filterwarnings("ignore")
-
 import streamlit as st
 st.set_option('deprecation.showExperimentalGetQueryParams', False)
-
 import requests
 import msal
 from urllib.parse import urlparse, parse_qs
 
 # Your existing client_id, secret, redirect_uri...
-
-
 # Constants for Microsoft App
 client_id = "YOUR_CLIENT_ID"
 client_secret = "YOUR_CLIENT_SECRET"
