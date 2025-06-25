@@ -30,7 +30,7 @@ def get_auth_url():
 st.title("🔐 RAG App with OneDrive Integration")
 st.write("Login with your Microsoft account to access your OneDrive files.")
 
-code = st.experimental_get_query_params().get("code", [None])[0]
+code = st.query_params().get("code", [None])[0]
 
 if not code:
     if st.button("🔗 Sign in with Microsoft"):
