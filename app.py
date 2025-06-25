@@ -32,7 +32,8 @@ st.write("Login with your Microsoft account to access your OneDrive files.")
 
 # --- Extract auth code from URL ---
 params = st.experimental_get_query_params()
-code = params.get("code", [None])[0]
+code = st.query_params.get("code", [None])[0]
+
 
 if not code:
     if st.button("🔗 Sign in with Microsoft"):
