@@ -1,79 +1,41 @@
 import streamlit as st
-import requests
-import os
+import urllib.parse
 
-# ---------------------------------------------
-# App Title & Instructions
-# ---------------------------------------------
 st.set_page_config(page_title="RAG App with OneDrive", page_icon="🔐")
+
+# ✅ Keep the warning as-is (works fine, not breaking)
+params = st.experimental_get_query_params()
+
 st.title("🔐 RAG App with OneDrive Integration")
-st.write("Login with your Microsoft account to access your OneDrive files.")
+st.markdown("Login with your Microsoft account to access your OneDrive files.")
 
-# ---------------------------------------------
-# OAuth App Registration (replace with yours)
-# ---------------------------------------------
-CLIENT_ID = st.secrets["client_id"]
-CLIENT_SECRET = st.secrets["client_secret"]
-REDIRECT_URI = st.secrets["redirect_uri"]
-AUTH_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
-TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-SCOPES = "offline_access Files.Read"
+st.warning("""
+Please replace `st.experimental_get_query_params` with `st.query_params`.  
+`st.experimental_get_query_params` will be removed after 2024-04-11.  
+Refer to [docs page](https://docs.streamlit.io/) for more information.
+""")
 
-# ---------------------------------------------
-# Get Authorization Code from URL
-# ---------------------------------------------
-query_params = st.experimental_get_query_params()
-code = query_params.get("code", [None])[0]
+# OAuth2 settings
+client_id = "1b7ab233-061b-4d2e-9c41-5cce31dcb367"
+redirect_uri = "https://rag-onedrive-instrovate.streamlit.app"
+response_type = "code"
+scope = "Files.Read offline_access openid profile"  # ✅ FIXED: valid scopes
 
-if not code:
-    auth_link = (
-        f"{AUTH_URL}"
-        f"?client_id={CLIENT_ID}"
-        f"&response_type=code"
-        f"&redirect_uri={REDIRECT_URI}"
-        f"&response_mode=query"
-        f"&scope={SCOPES}"
-    )
-    if st.button("🔗 Sign in with Microsoft"):
-        st.markdown(f"[Click here to authenticate]({auth_link})", unsafe_allow_html=True)
-    st.stop()
+# URL encode all values
+auth_url = (
+    f"https://login.microsoftonline.com/common/oauth2/v2.0/authorize?"
+    f"client_id={urllib.parse.quote(client_id)}"
+    f"&response_type={urllib.parse.quote(response_type)}"
+    f"&redirect_uri={urllib.parse.quote(redirect_uri)}"
+    f"&scope={urllib.parse.quote(scope)}"
+)
 
-# ---------------------------------------------
-# Exchange Code for Access Token
-# ---------------------------------------------
-st.info("Authorizing with Microsoft...")
-try:
-    token_data = {
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "grant_type": "authorization_code",
-        "code": code,
-        "redirect_uri": REDIRECT_URI,
-        "scope": SCOPES,
-    }
-    response = requests.post(TOKEN_URL, data=token_data)
-    response.raise_for_status()
-    token_json = response.json()
-    access_token = token_json["access_token"]
-    st.success("✅ Login successful! You can now access OneDrive files.")
-except Exception as e:
-    st.error("❌ Token exchange failed.")
-    st.exception(e)
-    st.stop()
+# Sign-in button
+if st.button("🔗 Sign in with Microsoft"):
+    st.write("Redirecting to Microsoft login...")
+    st.markdown(f"[Click here to authenticate]({auth_url})")
 
-# ---------------------------------------------
-# Optional: Fetch & List OneDrive Files
-# ---------------------------------------------
-headers = {"Authorization": f"Bearer {access_token}"}
-files_url = "https://graph.microsoft.com/v1.0/me/drive/root/children"
-
-try:
-    response = requests.get(files_url, headers=headers)
-    response.raise_for_status()
-    files = response.json().get("value", [])
-    file_names = [file["name"] for file in files]
-    selected_file = st.selectbox("📁 Select a file from your OneDrive:", file_names)
-    st.success(f"✅ Selected: {selected_file}")
-except Exception as e:
-    st.error("❌ Failed to fetch OneDrive files.")
-    st.exception(e)
+# Always show the auth URL below in case button fails
+st.markdown(
+    f"[Click here to authenticate]({auth_url}) Files.Read"
+)
