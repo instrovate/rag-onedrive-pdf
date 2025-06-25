@@ -1,25 +1,23 @@
 import streamlit as st
-import msal
 import requests
+import msal
+import os
 
-st.set_page_config(page_title="RAG with SharePoint/OneDrive", layout="centered")
+# Load secrets from Streamlit Cloud settings
+client_id = st.secrets["client_id"]
+client_secret = st.secrets["client_secret"]
+tenant_id = st.secrets["tenant_id"]
+redirect_uri = st.secrets["redirect_uri"]
 
-# Azure AD app credentials
-client_id = "your_actual_client_id_here"
-client_secret = "your_actual_client_secret_here"
-tenant_id = "your_actual_tenant_id_here"
-redirect_uri = "https://rag-onedrive-instrovate.streamlit.app"
-
-# MSAL setup
-authority = f"https://login.microsoftonline.com/{tenant_id}"
-scope = ["Files.Read.All", "User.Read"]
+# Microsoft scopes
+scope = ["Files.Read"]
 
 def build_msal_app(cache=None):
     return msal.ConfidentialClientApplication(
         client_id,
-        authority=authority,
+        authority=f"https://login.microsoftonline.com/{tenant_id}",
         client_credential=client_secret,
-        token_cache=cache
+        token_cache=cache,
     )
 
 def get_auth_url():
@@ -27,29 +25,36 @@ def get_auth_url():
     auth_url = app.get_authorization_request_url(scope, redirect_uri=redirect_uri)
     return auth_url
 
+# --- Streamlit App UI ---
+st.set_page_config(page_title="🔐 RAG App with OneDrive", layout="centered")
 st.title("🔐 RAG App with OneDrive Integration")
 st.write("Login with your Microsoft account to access your OneDrive files.")
 
-code = st.query_params().get("code", [None])[0]
+# --- Extract auth code from URL ---
+params = st.experimental_get_query_params()
+code = params.get("code", [None])[0]
 
 if not code:
     if st.button("🔗 Sign in with Microsoft"):
         st.markdown(f"[Click here to authenticate]({get_auth_url()})")
 else:
+    # Exchange code for access token
     app = build_msal_app()
     result = app.acquire_token_by_authorization_code(code, scopes=scope, redirect_uri=redirect_uri)
 
     if "access_token" in result:
         access_token = result["access_token"]
         headers = {"Authorization": f"Bearer {access_token}"}
+
+        # Get OneDrive root files
         drive_response = requests.get("https://graph.microsoft.com/v1.0/me/drive/root/children", headers=headers)
 
         if drive_response.status_code == 200:
             files = drive_response.json().get("value", [])
             st.success("✅ Login successful! Here are your OneDrive files:")
             for file in files:
-                st.markdown(f"- 📄 **{file['name']}**")
+                st.write(f"📄 {file['name']}")
         else:
-            st.error("Failed to access OneDrive files.")
+            st.error(f"❌ Failed to fetch files: {drive_response.status_code}")
     else:
-        st.error("Login failed. Please try again.")
+        st.error("❌ Failed to authenticate. Please try again.")
